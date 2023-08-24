@@ -1,7 +1,17 @@
+/**
+ ******************************************************************************
+ * @file         ds1302.c
+ * @author       Aaron Escoboza
+ * @brief        Source file for DS1302 RTC driver
+ * @link         GitGub : https://github.com/aaron-ev
+ ******************************************************************************
+ */
 
 #include "ds1302.h"
 
-#define MAX_DATA_SIZE           8
+#define DS1302_DATA_SIZE           (8)
+#define DS1302_ADDR_SIZE           (8)
+#define DS1302_PACKAGE_SIZE        (DS1302_DATA_SIZE + DS1302_ADDR_SIZE)
 
 void DS1302_init(void)
 {
@@ -15,8 +25,7 @@ void DS1302_init(void)
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_PIN_SCLK, GPIO_PIN_RESET);
 }
 
-
-void DS1302_sendBit(uint8_t bit)
+void DS1302_writeBit(uint8_t bit)
 {
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_SDA, (bit == 1) ?  GPIO_PIN_SET :  GPIO_PIN_RESET);
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_SCLK,  GPIO_PIN_SET);
@@ -25,27 +34,21 @@ void DS1302_sendBit(uint8_t bit)
     HAL_Delay(1);
 }
 
-#define BYTE_SIZE           8
-
-void DS1302_writeByte(uint8_t data)
-{
-    for (i = 0; i < BYTE_SIZE; i ++) 
-    {
-        DS1302_sendBit(data & 1);
-        data >>= 1;
-    }
-}
-
-static void DS1302_write(uint8_t addr, uint8_t data)
+static void DS1302_writeByte(uint8_t addr, uint8_t data)
 {
     uint8_t i;
+    uint16_t  package = (uint16_t)data << 8 | addr;
 
     /* RST high to start communication */
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_PIN_RST, GPIO_PIN_SET);
-    /* Send address/cmd */
-    DS1302_writeByte(addr);
-    /* Send data */
-    DS1302_writeByte(data);
+
+    /* write address/cmd and then the data */
+    for (i = 0; i < DS1302_PACKAGE_SIZE; i ++) 
+    {
+        DS1302_writeBit(package & 1);
+        package >>= 1;
+    }
+
     /* Go back to default state*/
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_PIN_RST, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(DS1302_GPIO_PORT, DS1302_SDA, GPIO_PIN_RESET);
@@ -70,12 +73,20 @@ static void DS1302_setSDAasOutput(void)
     HAL_GPIO_Init(DS1302_GPIO_PORT, &GPIO_InitStructure);
 }
 
-static uint8_t DS1302_readByte(void)
+static uint8_t DS1302_readByte(uint8_t addr)
 {
-    uint8_t i;
+    uint8_t i; 
     uint8_t data = 0;
 
-    for (i = 0; i < 8; i ++) 
+    /* RST high to start communication */
+    HAL_GPIO_WritePin(DS1302_GPIO, DS1302_PIN_RST, GPIO_PIN_SET);
+
+    /* Make sure LSB bit is high for read */
+    addr |= 0x1;
+    DS1302_writeByte(addr);
+
+    DS1302_setSDAasInput();
+    for (i = 0; i < DS1302_DATA_SIZE; i ++) 
     {
         if (HAL_GPIO_ReadPin(DS1302_GPIO, DS1302_PIN_SDA))
         {
@@ -87,21 +98,6 @@ static uint8_t DS1302_readByte(void)
         Hal_delay(1);
         data >>= 1;
     }
-    return data;
-}
-
-static uint8_t DS1302_read(uint8_t addr)
-{
-    uint8_t data;
-
-    /* RST high to start communication */
-    HAL_GPIO_WritePin(DS1302_GPIO, DS1302_PIN_RST, GPIO_PIN_SET);
-    /* Make sure LSB bit is high for read */
-    addr |= 0x1;
-    DS1302_writeByte(addr);
-
-    DS1302_setSDAasInput();
-    data = DS1302_readByte();
     DS1302_setSDAasOutput();
 
     /* Go back to default state*/

@@ -1,3 +1,11 @@
+/**
+ ******************************************************************************
+ * @file         ds1302.c
+ * @author       Aaron Escoboza
+ * @brief        header file for DS1302 RTC driver
+ * @link         GitGub : https://github.com/aaron-ev
+ ******************************************************************************
+ */
 
 #ifndef __DS1302__H
 #define __DS1302__H
