@@ -19,6 +19,8 @@
 #define DS1302_PIN_RST              GPIO_PIN_5
 /************* Configuration section **************/
 
+#define DS1302_RAM_SIZE             31
+
 /**
  * Enumeration for days of the week
  */
@@ -52,19 +54,19 @@ typedef enum
 }ClockPeriod;
 
 /**
- * Structure for holding Time_s data
+ * Structure for holding time data
  */
 typedef struct
 {
     Day day; /* Range: enum day values*/
+    uint8_t sec; /* Range: 0-59 */
+    uint8_t min; /* Range: 0-59 */
+    uint8_t year; /* Range: 0 - 99 */
+    uint8_t hour; /* Range: 1-12/0-23*/
+    uint8_t date;  /* Range: 1 - 31 */
+    uint8_t month; /* Range: 1 - 12 */
     ClockSystem clockSystem; /* 12 or 24 clock system */
     ClockPeriod clockPeriod; /* AM or PM*/
-    uint8_t year; /* Range: 0 - 99 */
-    uint8_t month; /* Range: 1 - 12 */
-    uint8_t date;  /* Range: 1 - 31 */
-    uint8_t hour; /* Range: 1-12/0-23*/
-    uint8_t min; /* Range: 0-59 */
-    uint8_t sec; /* Range: 0-59 */
 }Time_s;
 
 void ds1302_init(void);

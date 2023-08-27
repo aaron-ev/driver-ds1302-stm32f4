@@ -14,7 +14,6 @@
 #define DS1302_CMD_SIZE             8
 #define DS1302_FRAME_SIZE           (DS1302_DATA_SIZE + DS1302_ADDR_SIZE)
 #define DS1302_RAM_ADDR_START       0xC0
-#define DS1302_RAM_SIZE             31
 
 /* Register definition according to the spec */
 #define DS1302_REG_SEC              0x80
