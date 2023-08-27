@@ -44,7 +44,7 @@ void delayUS(uint32_t usDelay)
 {
     volatile uint32_t cycles = (SystemCoreClock/1000000L) * usDelay;
     volatile uint32_t startCYCCNT = DWT->CYCCNT;
-    do  { } while(DWT->CYCCNT - startCYCCNT < cycles);
+    do {} while(DWT->CYCCNT - startCYCCNT < cycles);
 }
 
 /**
@@ -147,7 +147,9 @@ void ds1302_init(void)
     GPIO_InitTypeDef GPIO_InitStructure;
 
     /* Enable DWT for microseconds delay */
-    DWT->CTRL |= 1;
+   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+   DWT->CYCCNT = 0;
+   DWT->CTRL |= 1 ;
 
     /* Initialize  SCLK, SDA and RST as output, pull push and speed high */
     GPIO_InitStructure.Pin = DS1302_PIN_SCLK | DS1302_PIN_SDA | DS1302_PIN_RST;
