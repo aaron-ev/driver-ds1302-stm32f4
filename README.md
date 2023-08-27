@@ -13,7 +13,7 @@ The first thing you need to do is changing the current microcontroller settings
 based on your needs in ds1302.h under configuration
 section. The 3 lines should be on the same GPIO port.
 
-![configuration](/docs/configuration.png)
+![configuration](/docs/img/configuration.png)
 
 # Example
 
