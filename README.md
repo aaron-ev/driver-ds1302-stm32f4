@@ -3,7 +3,7 @@
 
 The DS1302 trickle-charge timekeeping chip contains a real-time clock/calendar and 31 bytes of static RAM. It communicates with a microprocessor via a simple serial interface. The real-time clock/calendar provides seconds, minutes, hours, day, date, month, and year information.
 
-![ds1302 block diagram](/docs/img/blockDiagram.png)
+![ds1302 block diagram](/img/blockDiagram.png)
 
 Source: [DS1302 device](https://www.analog.com/en/products/ds1302.html#:~:text=The%20DS1302%20trickle%2Dcharge%20timekeeping,%2C%20month%2C%20and%20year%20information.)
 
@@ -13,7 +13,7 @@ The first thing you need to do is changing the current microcontroller settings
 based on your needs in ds1302.h under configuration
 section. The 3 lines should be on the same GPIO port.
 
-![configuration](/docs/img/configuration.png)
+![configuration](/img/configuration.png)
 
 # Example
 
