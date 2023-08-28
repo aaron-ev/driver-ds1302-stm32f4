@@ -40,8 +40,8 @@ typedef enum
  */
 typedef enum 
 {
-    CLOCK_SYSTEM_24,
-    CLOCK_SYSTEM_12,
+    DS1302_CLK_SYSTEM_24,
+    DS1302_CLK_SYSTEM_12,
 }ClockSystem; 
 
 /**
@@ -49,8 +49,8 @@ typedef enum
  */
 typedef enum 
 {
-    CLOCK_AM_PERIOD,
-    CLOCK_PM_PERIOD,
+    DS1302_CLK_AM_PERIOD,
+    DS1302_CLK_PM_PERIOD,
 }ClockPeriod;
 
 /**
@@ -72,13 +72,13 @@ typedef struct
 void ds1302_init(void);
 
 void ds1302_get_time(Time_s *time);
-void ds1302_setTime(const Time_s *time);
+void ds1302_set_time(const Time_s *time);
 
 void ds1302_clear_ram(void);
 uint8_t ds1302_read_ram(const uint8_t addr);
 void ds1302_write_ram(const uint8_t addr, uint8_t data);
 
-ClockSystem ds1302_getClockSystem(void);
-ClockPeriod ds1302_getClockPeriod(void);
+ClockSystem ds1302_get_clock_system(void);
+ClockPeriod ds1302_get_clock_period(void);
 
 #endif

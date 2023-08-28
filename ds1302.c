@@ -8,11 +8,9 @@
  */
 #include "ds1302.h"
 
-/* Definition of sizes */
+/* Size definitions */
 #define DS1302_DATA_SIZE            8
-#define DS1302_ADDR_SIZE            8
 #define DS1302_CMD_SIZE             8
-#define DS1302_FRAME_SIZE           (DS1302_DATA_SIZE + DS1302_ADDR_SIZE)
 #define DS1302_RAM_ADDR_START       0xC0
 
 /* Register definition according to the spec */
@@ -25,9 +23,11 @@
 #define DS1302_REG_YEAR             0x8C
 #define DS1302_REG_CONTROL          0x8E
 
-#define BCD_TO_DEC(val)            ((val / 16 * 10) + (val % 16))
-#define DEC_TO_BCD(val)            ((val / 10 * 16) + (val % 10))
+/* Macros for handling BCD format data stored in the RTC device */
+#define BCD_TO_DEC(val)             ((val / 16 * 10) + (val % 16))
+#define DEC_TO_BCD(val)             ((val / 10 * 16) + (val % 10))
 
+/* Masks to get fields in the calendar*/
 #define MASK_CLOCK_SYSTEM           0x80
 #define MASK_CLOCK_PERIOD           0x20
 #define MASK_HOURS_24               0x3F
@@ -92,7 +92,7 @@ static void reset_rst(void)
 }
 
 /**
- * @brief Do a clock cycle on CLK line
+ * @brief Clock cycle on CLK line
  * @param void
  * @return void
  */
@@ -148,13 +148,13 @@ void ds1302_init(void)
 
     /* Enable DWT for microseconds delay */
    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-   DWT->CYCCNT = 0;
    DWT->CTRL |= 1 ;
+   DWT->CYCCNT = 0;
 
     /* Initialize  SCLK, SDA and RST as output, pull push and speed high */
     GPIO_InitStructure.Pin = DS1302_PIN_SCLK | DS1302_PIN_SDA | DS1302_PIN_RST;
-    GPIO_InitStructure.Mode =  GPIO_MODE_OUTPUT_PP;
     GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStructure.Mode =  GPIO_MODE_OUTPUT_PP;
     HAL_GPIO_Init(DS1302_GPIO_PORT, &GPIO_InitStructure);
 
     set_idle_state();
@@ -169,14 +169,14 @@ static void set_read_mode(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
     GPIO_InitStructure.Pin = DS1302_PIN_SDA;
-    GPIO_InitStructure.Mode =  GPIO_MODE_INPUT;
     GPIO_InitStructure.Pull = GPIO_PULLDOWN;
     GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStructure.Mode =  GPIO_MODE_INPUT;
     HAL_GPIO_Init(DS1302_GPIO_PORT, &GPIO_InitStructure);
 }
 
 /**
- * @brief Read mode: SDA pin is set as ouput
+ * @brief Write mode: SDA pin is set as ouput
  * @param void
  * @return void
  */
@@ -184,28 +184,9 @@ static void set_write_mode(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
     GPIO_InitStructure.Pin = DS1302_PIN_SDA;
-    GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
     HAL_GPIO_Init(DS1302_GPIO_PORT, &GPIO_InitStructure);
-}
-
-/**
- * @brief write a bit following serial communication specified in the spec
- *
- * @param bit you being written
- * @return void
- */
-static void write_bit(uint8_t bit)
-{
-    if (bit)
-    {
-        set_data();
-    }
-    else
-    {
-        reset_data();
-    }
-    set_clk_cycle();
 }
 
 /**
@@ -221,7 +202,8 @@ static void write_cmd(uint8_t cmd)
     set_rst();
     for (i = 0; i < DS1302_CMD_SIZE; i++)
     {
-        write_bit(cmd & 1);
+        (cmd & 1) ? set_data() : reset_data();
+        set_clk_cycle();
         cmd >>= 1;
     }
 }
@@ -230,10 +212,10 @@ static void write_cmd(uint8_t cmd)
  * @brief write a byte following serial communication specified in the spec
  *
  * @param addr where you want write to
- * @param data that will write to addr
+ * @param data that will write to address
  * @return void
  */
-static void write_byte(uint8_t addr, uint8_t data)
+static void write_data(uint8_t addr, uint8_t data)
 {
     uint8_t i;
 
@@ -241,22 +223,16 @@ static void write_byte(uint8_t addr, uint8_t data)
     /* Write data bit by bit */
     for (i = 0; i < DS1302_DATA_SIZE; i++)
     {
-        write_bit(data & 1);
+        (data & 1) ? set_data() : reset_data();
+        set_clk_cycle();
         data >>= 1;
     }
     set_idle_state();
 }
 
-uint8_t read_data_pin(void)
+static GPIO_PinState read_data_pin(void)
 {
-    if (HAL_GPIO_ReadPin(DS1302_GPIO_PORT, DS1302_PIN_SDA) == GPIO_PIN_SET)
-    {
-        return 1;
-    }
-    else 
-    {
-        return 0;
-    }
+    return HAL_GPIO_ReadPin(DS1302_GPIO_PORT, DS1302_PIN_SDA);
 }
 
 /**
@@ -265,7 +241,7 @@ uint8_t read_data_pin(void)
  * @param addr address you want to read from
  * @return byte read
  */
-static uint8_t read_byte(uint8_t addr)
+static uint8_t read_data(uint8_t addr)
 {
     uint8_t i;
     uint8_t data = 0;
@@ -277,7 +253,10 @@ static uint8_t read_byte(uint8_t addr)
     set_read_mode();
     for (i = 0; i < DS1302_DATA_SIZE; i++)
     {
-        if (read_data_pin())
+        /* Ones come from the MSB to LSB
+         * by shifting data to the right
+        */
+        if (read_data_pin() == GPIO_PIN_SET)
         {
             data |= 0x80;
         }
@@ -288,13 +267,14 @@ static uint8_t read_byte(uint8_t addr)
         }
     }
     set_write_mode();
+
     set_idle_state();
 
     return data;
 }
 
 /**
- * @brief Get time in calendar registers
+ * @brief Get time from calendar registers
  *
  * @param time pointer to time structure
  * @return void
@@ -307,25 +287,24 @@ void ds1302_get_time(Time_s *time)
     {
         return;
     }
-    tmpMaskClockSystem = (time->clockSystem == CLOCK_SYSTEM_24) ? MASK_HOURS_24:
-                                                                  MASK_HOURS_12;
-
-    time->day = BCD_TO_DEC(read_byte(DS1302_REG_DAY));
-    time->year = BCD_TO_DEC(read_byte(DS1302_REG_YEAR));
-    time->month = BCD_TO_DEC(read_byte(DS1302_REG_MONTH));
-    time->date = BCD_TO_DEC(read_byte(DS1302_REG_DATE));
-    time->hour = BCD_TO_DEC((read_byte(DS1302_REG_HOUR) & tmpMaskClockSystem));
-    time->min = BCD_TO_DEC(read_byte(DS1302_REG_MIN));
-    time->sec = BCD_TO_DEC((read_byte(DS1302_REG_SEC) & MASK_SECONDS));
+    tmpMaskClockSystem = (time->clockSystem == DS1302_CLK_SYSTEM_24) ?
+                         MASK_HOURS_24: MASK_HOURS_12;
+    time->min = BCD_TO_DEC(read_data(DS1302_REG_MIN));
+    time->day = BCD_TO_DEC(read_data(DS1302_REG_DAY));
+    time->year = BCD_TO_DEC(read_data(DS1302_REG_YEAR));
+    time->date = BCD_TO_DEC(read_data(DS1302_REG_DATE));
+    time->month = BCD_TO_DEC(read_data(DS1302_REG_MONTH));
+    time->sec = BCD_TO_DEC((read_data(DS1302_REG_SEC) & MASK_SECONDS));
+    time->hour = BCD_TO_DEC((read_data(DS1302_REG_HOUR) & tmpMaskClockSystem));
 }
 
 /**
- * @brief set Time_s into calendar registers
+ * @brief set time into calendar registers
  *        
- * @param time pointer to Time_s structure
+ * @param time pointer to time structure
  * @return void
  */
-void ds1302_setTime(const Time_s *time)
+void ds1302_set_time(const Time_s *time)
 {
     uint8_t tmpMaskClockSystem = 0;
 
@@ -337,29 +316,30 @@ void ds1302_setTime(const Time_s *time)
     /* When 12 clock system is set, bit 7 should be high 
      * according to the spec, low for 24 clock system.
     */
-    if (time->clockSystem != CLOCK_SYSTEM_24)
+    if (time->clockSystem != DS1302_CLK_SYSTEM_24)
     {
+        /* Set 12 hour clock system */
         tmpMaskClockSystem |=  MASK_CLOCK_SYSTEM;
-        /* 12 clock system by default */
-        if (time->clockPeriod == CLOCK_PM_PERIOD)
+        if (time->clockPeriod == DS1302_CLK_PM_PERIOD)
         {
+            /* Set PM clock period */
             tmpMaskClockSystem |= MASK_CLOCK_PERIOD;
         }
     }
     /* Enable write by driving protected bit to 0*/
-    write_byte(DS1302_REG_CONTROL, 0);
+    write_data(DS1302_REG_CONTROL, 0);
 
-    /* Write Time_s to into registers in BCD format*/
-    write_byte(DS1302_REG_DAY, DEC_TO_BCD(time->day));
-    write_byte(DS1302_REG_YEAR, DEC_TO_BCD(time->year));
-    write_byte(DS1302_REG_MONTH, DEC_TO_BCD(time->month));
-    write_byte(DS1302_REG_DATE, DEC_TO_BCD(time->date));
-    write_byte(DS1302_REG_HOUR, DEC_TO_BCD(time->hour) | tmpMaskClockSystem);
-    write_byte(DS1302_REG_MIN, DEC_TO_BCD(time->min));
-    write_byte(DS1302_REG_SEC, DEC_TO_BCD(time->sec));
+    /* Write time data to RTC calendar registers in BCD format */
+    write_data(DS1302_REG_MIN, DEC_TO_BCD(time->min));
+    write_data(DS1302_REG_SEC, DEC_TO_BCD(time->sec));
+    write_data(DS1302_REG_DAY, DEC_TO_BCD(time->day));
+    write_data(DS1302_REG_YEAR, DEC_TO_BCD(time->year));
+    write_data(DS1302_REG_DATE, DEC_TO_BCD(time->date));
+    write_data(DS1302_REG_MONTH, DEC_TO_BCD(time->month));
+    write_data(DS1302_REG_HOUR, DEC_TO_BCD(time->hour) | tmpMaskClockSystem);
 
     /* Disable write by driving protected bit to 1 */
-    write_byte(DS1302_REG_CONTROL, 0x80);
+    write_data(DS1302_REG_CONTROL, 0x80);
 }
 
 /**
@@ -370,18 +350,16 @@ void ds1302_setTime(const Time_s *time)
  */
 void ds1302_write_ram(const uint8_t addr, uint8_t data)
 {
-    /* Check for valid addr */
     if (addr > (DS1302_RAM_SIZE - 1))
     { 
         return;
     }
-
     /* Enable write by driving protected bit to 0*/
-    write_byte(DS1302_REG_CONTROL, 0);
+    write_data(DS1302_REG_CONTROL, 0);
     /* Write addresses for RAM are multiple of 2 */
-    write_byte(DS1302_RAM_ADDR_START + (2 * addr), data);
+    write_data(DS1302_RAM_ADDR_START + (2 * addr), data);
     /* Disable write by driving protected bit to 1 */
-    write_byte(DS1302_REG_CONTROL, 0x80);
+    write_data(DS1302_REG_CONTROL, 0x80);
 }
 
 /**
@@ -391,11 +369,11 @@ void ds1302_write_ram(const uint8_t addr, uint8_t data)
  */
 uint8_t ds1302_read_ram(const uint8_t addr)
 {
-    /* Check for valid addr */
-    if ( addr > (DS1302_RAM_SIZE - 1) )
+    if (addr > (DS1302_RAM_SIZE - 1))
+    {
         return 0;
-
-    return read_byte(DS1302_RAM_ADDR_START + (2 * addr));
+    }
+    return read_data(DS1302_RAM_ADDR_START + (2 * addr));
 }
 
 /**
@@ -417,16 +395,10 @@ void ds1302_clear_ram(void)
  * @param void
  * @return ClockSystem 
  */
-ClockSystem ds1302_getClockSystem(void)
+ClockSystem ds1302_get_clock_system(void)
 {
-    if (read_byte(DS1302_REG_HOUR) & MASK_CLOCK_SYSTEM)
-    {
-        return CLOCK_SYSTEM_12;
-    }
-    else
-    {
-        return CLOCK_SYSTEM_24;
-    }
+    return (read_data(DS1302_REG_HOUR) & MASK_CLOCK_SYSTEM) ?
+            DS1302_CLK_SYSTEM_12 : DS1302_CLK_SYSTEM_24;
 }
 
 /**
@@ -434,14 +406,8 @@ ClockSystem ds1302_getClockSystem(void)
  * @param void
  * @return ClockPeriod 
  */
-ClockPeriod ds1302_getClockPeriod(void)
+ClockPeriod ds1302_get_clock_period(void)
 {
-    if (read_byte(DS1302_REG_HOUR) & MASK_CLOCK_PERIOD)
-    {
-        return CLOCK_PM_PERIOD;
-    }
-    else
-    {
-        return CLOCK_AM_PERIOD;
-    }
+    return (read_data(DS1302_REG_HOUR) & MASK_CLOCK_PERIOD) ?
+           DS1302_CLK_PM_PERIOD : DS1302_CLK_AM_PERIOD;
 }

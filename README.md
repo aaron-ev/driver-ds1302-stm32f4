@@ -22,9 +22,9 @@ The following pice of code shows you how to:
 * initialize the device lines (DATA, CLK and RESET)
 * Set a specific time
 * Get current time
-* Write to RAM 
-* Read the entire RAM
-* Clear the entire RAM
+* Write to specific address in RAM
+* Read entire RAM
+* Clear entire RAM
 
 ```c
 
@@ -42,8 +42,8 @@ int main(void)
     time.year = 23;
     time.month = 2;
     time.date = 30;
-    time.clockSystem = CLOCK_SYSTEM_12;
-    time.clockPeriod = CLOCK_PERIOD_PM;
+    time.clockSystem = DS1302_CLK_SYSTEM_12;
+    time.clockPeriod = DS1302_CLK_PM_PERIOD;
     time.hour = 8;
     time.min = 1;
     time.sec = 0;
