@@ -81,4 +81,7 @@ void ds1302_write_ram(const uint8_t addr, uint8_t data);
 ClockSystem ds1302_get_clock_system(void);
 ClockPeriod ds1302_get_clock_period(void);
 
+void ds1302_write_ram_burst(uint8_t len, uint8_t *buff);
+void ds1302_read_ram_burst(uint8_t len, uint8_t *buff);
+
 #endif
